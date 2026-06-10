@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="智能室内光环境有限状态机(FSM)运行原理交互式可视化展示">
+  <title>光学FSM运行原理 · 交互式可视化</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💡</text></svg>">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- ===== Header ===== -->
+    <header class="app-header">
+      <div class="header-left">
+        <span class="header-logo">💡</span>
+        <div class="header-title">
+          <h1>智能室内光环境 · FSM 运行原理</h1>
+          <span class="header-subtitle">有限状态机控制逻辑交互式可视化</span>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="status-indicator">
+          <span class="status-dot-live"></span>
+          <span id="status-text">就绪</span>
+        </div>
+        <button class="btn" id="btn-auto-demo">
+          <span class="btn-icon">▶</span> 自动演示
+        </button>
+        <button class="btn" id="btn-auto-resume" style="display: none;">
+          <span class="btn-icon">⏯</span> 继续演示
+        </button>
+        <button class="btn" id="btn-reset">
+          <span class="btn-icon">↺</span> 重置
+        </button>
+      </div>
+    </header>
+
+    <!-- ===== Left Panel: Sensors ===== -->
+    <aside class="panel-left">
+      <section class="sensor-panel">
+        <h2>📡 传感器模拟</h2>
+        <div class="sensor-group">
+          <!-- PIR -->
+          <div class="sensor-item" id="sensor-pir">
+            <div class="sensor-row">
+              <span class="sensor-label"><span class="sensor-icon">🚶</span> PIR 人体感应</span>
+              <label class="toggle-switch">
+                <input type="checkbox" id="input-pir">
+                <span class="toggle-track"></span>
+                <span class="toggle-thumb"></span>
+              </label>
+            </div>
+          </div>
+          <!-- Door -->
+          <div class="sensor-item" id="sensor-door">
+            <div class="sensor-row">
+              <span class="sensor-label"><span class="sensor-icon">🚪</span> 门窗传感器</span>
+              <label class="toggle-switch">
+                <input type="checkbox" id="input-door">
+                <span class="toggle-track"></span>
+                <span class="toggle-thumb"></span>
+              </label>
+            </div>
+          </div>
+          <!-- Radar -->
+          <div class="sensor-item" id="sensor-radar">
+            <div class="sensor-row">
+              <span class="sensor-label"><span class="sensor-icon">📡</span> 毫米波雷达 (生命体征)</span>
+              <label class="toggle-switch">
+                <input type="checkbox" id="input-radar">
+                <span class="toggle-track"></span>
+                <span class="toggle-thumb"></span>
+              </label>
+            </div>
+          </div>
+          <!-- ToF Posture -->
+          <div class="sensor-item" id="sensor-posture">
+            <span class="sensor-label"><span class="sensor-icon">🧘</span> ToF 姿态检测</span>
+            <select class="sensor-select" id="input-posture">
+              <option value="none">未检测到人员</option>
+              <option value="standing">站立行走</option>
+              <option value="seated">伏案就坐</option>
+              <option value="reclined">后仰休息</option>
+            </select>
+          </div>
+          <!-- Voice -->
+          <div class="sensor-item" id="sensor-voice">
+            <span class="sensor-label"><span class="sensor-icon">🎤</span> 语音 / 意图识别</span>
+            <div class="voice-buttons">
+              <button class="voice-btn" data-cmd="focus">💼 开始工作</button>
+              <button class="voice-btn" data-cmd="video">📹 视频会议</button>
+              <button class="voice-btn" data-cmd="endvideo">❌ 结束会议</button>
+            </div>
+          </div>
+          <!-- EEG -->
+          <div class="sensor-item" id="sensor-eeg">
+            <span class="sensor-label"><span class="sensor-icon">🧠</span> EEG 疲劳指数</span>
+            <div class="range-container">
+              <input type="range" class="sensor-range" id="input-eeg" min="0" max="100" value="0">
+              <span class="range-value" id="eeg-value">0%</span>
+            </div>
+          </div>
+          <!-- Video App -->
+          <div class="sensor-item" id="sensor-videoapp">
+            <div class="sensor-row">
+              <span class="sensor-label"><span class="sensor-icon">💻</span> 视频应用前台</span>
+              <label class="toggle-switch">
+                <input type="checkbox" id="input-videoapp">
+                <span class="toggle-track"></span>
+                <span class="toggle-thumb"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== AI Render Section ===== -->
+      <section class="ai-render-section">
+        <h2>🎨 AI 空间场景生成</h2>
+        <div class="ai-card">
+          <div class="ai-image-container">
+            <img id="ai-render-img" src="images/s0.png" alt="AI Render">
+            <!-- Sync indicators overlay -->
+            <div class="room-overlay-ai">
+              <div class="room-state-badge-ai" id="room-state-badge-ai">
+                <span class="room-state-dot-ai" id="room-state-dot-ai"></span>
+                <span id="room-state-text-ai">S₀ 空间空闲</span>
+              </div>
+              <div class="room-cct-badge-ai" id="room-cct-badge-ai">2700K</div>
+            </div>
+          </div>
+          <div class="ai-prompt-box">
+            <div class="prompt-header">
+              <span class="prompt-tag">AI Prompt (Nano Banana 2)</span>
+              <button class="btn-copy-small" id="btn-copy-prompt">📋 复制</button>
+            </div>
+            <div class="prompt-body-scroll">
+              <code id="ai-prompt-text"></code>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== Transition Logs ===== -->
+      <section class="timeline-section">
+        <h2>📜 状态转换日志</h2>
+        <div class="timeline-scroll" id="timeline-scroll">
+          <div class="timeline-event">
+            <span class="timeline-time">00:00</span>
+            <span class="timeline-dot" style="background: var(--color-s0)"></span>
+            <span class="timeline-text">系统初始化 → S₀ 空间空闲</span>
+          </div>
+        </div>
+      </section>
+    </aside>
+
+    <!-- ===== Center: Room Sectional Visualization ===== -->
+    <section class="panel-center">
+      <!-- Tab Header -->
+      <div class="center-header">
+        <div class="tab-group">
+          <button class="tab-btn active" id="tab-btn-sim" data-tab="simulation">💻 房间光照仿真</button>
+          <button class="tab-btn" id="tab-btn-fix" data-tab="fixtures">🔌 灯饰通道对照</button>
+        </div>
+      </div>
+
+      <div class="room-scene active" id="scene-simulation">
+        <svg id="room-svg-canvas" viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <!-- Room Inner Boundary Clip Path -->
+            <clipPath id="room-inner-clip">
+              <rect x="40" y="30" width="720" height="420" rx="4"/>
+            </clipPath>
+
+            <!-- Glow filters and gradients -->
+            <linearGradient id="svg-grad-baseboard" x1="0" y1="1" x2="0" y2="0">
+              <stop offset="0%" stop-color="#ffa032" stop-opacity="0.85"/>
+              <stop offset="30%" stop-color="#ffa032" stop-opacity="0.25"/>
+              <stop offset="100%" stop-color="#ffa032" stop-opacity="0"/>
+            </linearGradient>
+
+            <radialGradient id="svg-grad-ambient" cx="50%" cy="0%" r="60%">
+              <stop id="svg-ambient-stop" offset="0%" stop-color="#ffe2a0" stop-opacity="0.45"/>
+              <stop id="svg-ambient-stop-2" offset="50%" stop-color="#ffe2a0" stop-opacity="0.1"/>
+              <stop offset="100%" stop-color="#ffe2a0" stop-opacity="0"/>
+            </radialGradient>
+
+            <linearGradient id="svg-grad-task" x1="0" y1="0" x2="0" y2="1">
+              <stop id="svg-task-stop" offset="0%" stop-color="#b4dcff" stop-opacity="0.55"/>
+              <stop id="svg-task-stop-2" offset="70%" stop-color="#b4dcff" stop-opacity="0.1"/>
+              <stop offset="100%" stop-color="#b4dcff" stop-opacity="0"/>
+            </linearGradient>
+
+            <radialGradient id="svg-grad-facial" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#d7e6ff" stop-opacity="0.5"/>
+              <stop offset="60%" stop-color="#d7e6ff" stop-opacity="0.1"/>
+              <stop offset="100%" stop-color="#d7e6ff" stop-opacity="0"/>
+            </radialGradient>
+
+            <radialGradient id="svg-grad-accent1" cx="10%" cy="80%" r="40%">
+              <stop offset="0%" stop-color="#3cdcb2" stop-opacity="0.45"/>
+              <stop offset="100%" stop-color="#3cdcb2" stop-opacity="0"/>
+            </radialGradient>
+
+            <radialGradient id="svg-grad-accent2" cx="85%" cy="80%" r="40%">
+              <stop offset="0%" stop-color="#e6a03c" stop-opacity="0.45"/>
+              <stop offset="100%" stop-color="#e6a03c" stop-opacity="0"/>
+            </radialGradient>
+
+            <linearGradient id="svg-grad-window" x1="1" y1="0.3" x2="0" y2="0.7">
+              <stop offset="0%" stop-color="#648cdc" stop-opacity="0.4"/>
+              <stop offset="50%" stop-color="#648cdc" stop-opacity="0.1"/>
+              <stop offset="100%" stop-color="#648cdc" stop-opacity="0"/>
+            </linearGradient>
+            
+            <!-- Filter for soft glows -->
+            <filter id="soft-blur" x="-10%" y="-10%" width="120%" height="120%">
+              <feGaussianBlur stdDeviation="8"/>
+            </filter>
+          </defs>
+
+          <!-- 1. Room Background Wall -->
+          <rect x="0" y="0" width="800" height="500" class="wall-rect"/>
+          
+          <!-- Back wall panel lines (architectural lines for premium feel) -->
+          <line x1="200" y1="30" x2="200" y2="450" stroke="#141424" stroke-width="1.5"/>
+          <line x1="600" y1="30" x2="600" y2="450" stroke="#141424" stroke-width="1.5"/>
+          <rect x="230" y="100" width="340" height="150" fill="none" stroke="#121220" stroke-width="1" stroke-dasharray="4 4"/>
+
+          <!-- 2. Light layers (Behind furniture) - Clipped to Room Inner Bounds -->
+          <g clip-path="url(#room-inner-clip)">
+            <!-- Ambient cove light wash -->
+            <rect id="svg-light-ambient" x="40" y="30" width="720" height="420" fill="url(#svg-grad-ambient)" filter="url(#soft-blur)" opacity="0" style="transition: opacity 0.8s ease;"/>
+            
+            <!-- Baseboard light wash -->
+            <rect id="svg-light-baseboard" x="40" y="380" width="720" height="70" fill="url(#svg-grad-baseboard)" opacity="0" style="transition: opacity 0.8s ease;"/>
+
+            <!-- Accent left light wash -->
+            <circle id="svg-light-accent1" cx="80" cy="420" r="220" fill="url(#svg-grad-accent1)" filter="url(#soft-blur)" opacity="0" style="transition: opacity 0.8s ease;"/>
+
+            <!-- Accent right light wash -->
+            <circle id="svg-light-accent2" cx="680" cy="420" r="220" fill="url(#svg-grad-accent2)" filter="url(#soft-blur)" opacity="0" style="transition: opacity 0.8s ease;"/>
+
+            <!-- Window Light beam casting into room -->
+            <polygon id="svg-light-window" points="720,100 720,380 400,450 480,450" fill="url(#svg-grad-window)" opacity="0.3" style="transition: opacity 0.8s ease;"/>
+          </g>
+
+          <!-- 3. Architectural Structures (Ceiling, Floor, Walls, Window) -->
+          <!-- Ceiling -->
+          <rect x="0" y="0" width="800" height="30" fill="#030307"/>
+          <rect x="40" y="30" width="720" height="6" fill="#12121a"/>
+          
+          <!-- Floor -->
+          <rect x="0" y="450" width="800" height="50" class="floor-rect"/>
+          <line x1="0" y1="450" x2="800" y2="450" stroke="#222" stroke-width="1.5"/>
+
+          <!-- Left & Right Walls -->
+          <rect x="0" y="30" width="40" height="420" fill="#05050a"/>
+          <rect x="760" y="30" width="40" height="420" fill="#05050a"/>
+
+          <!-- Window (Right Side) -->
+          <rect x="720" y="100" width="40" height="280" fill="#111" stroke="#333" stroke-width="1"/>
+          <!-- Window glass -->
+          <rect id="svg-window-glass" x="723" y="103" width="34" height="274" fill="#1a324a" opacity="0.4" style="transition: opacity 0.8s ease;"/>
+          <!-- Blinds overlay -->
+          <rect id="svg-window-blinds" x="723" y="103" width="34" height="274" fill="#0a0a0f" opacity="0" style="transition: height 0.8s ease, opacity 0.8s ease;"/>
+          
+          <!-- 4. Foreground Furniture (Desk, Chair, Monitor, Lamp fixtures, Person) -->
+          <!-- Left accent light source fixture -->
+          <rect x="75" y="435" width="10" height="15" rx="2" fill="#1a1a24" stroke="#333" stroke-width="0.8"/>
+          <circle cx="80" cy="432" r="4" fill="#555"/>
+          
+          <!-- Right accent light source fixture -->
+          <rect x="675" y="435" width="10" height="15" rx="2" fill="#1a1a24" stroke="#333" stroke-width="0.8"/>
+          <circle cx="680" cy="432" r="4" fill="#555"/>
+
+          <!-- Chair Backrest -->
+          <rect id="svg-chair-back" x="382" y="250" width="10" height="110" rx="4" fill="#161822" stroke="#2c3040" stroke-width="1" style="transition: transform 0.8s ease;"/>
+          <!-- Person Silhouette -->
+          <g id="svg-person" opacity="0" style="transition: opacity 0.8s ease;">
+            <!-- Torso -->
+            <path d="M375,340 C375,285 425,285 425,340 Z" class="person-part"/>
+            <!-- Head -->
+            <circle cx="400" cy="265" r="16" class="person-part"/>
+            <!-- Arm / posture seat hint -->
+            <path d="M385,320 Q405,335 418,320" fill="none" stroke="#252b3d" stroke-width="3" stroke-linecap="round"/>
+          </g>
+          <!-- Chair Seat & Base -->
+          <rect x="365" y="340" width="70" height="10" rx="3" fill="#161822" stroke="#2c3040" stroke-width="1"/>
+          <line x1="400" y1="350" x2="400" y2="410" stroke="#2c3040" stroke-width="4"/>
+          <path d="M375,410 L425,410" stroke="#2c3040" stroke-width="3" stroke-linecap="round"/>
+
+          <!-- Desk legs -->
+          <rect x="270" y="300" width="10" height="150" fill="#15151f" stroke="#2c2c3a" stroke-width="0.8"/>
+          <rect x="520" y="300" width="10" height="150" fill="#15151f" stroke="#2c2c3a" stroke-width="0.8"/>
+          
+          <!-- Desk Drawer Cabinet (Left side under desk) -->
+          <rect x="280" y="320" width="55" height="120" rx="2" fill="#101018" stroke="#1f1f2a" stroke-width="1"/>
+          <line x1="285" y1="360" x2="330" y2="360" stroke="#222" stroke-width="1"/>
+          <line x1="285" y1="400" x2="330" y2="400" stroke="#222" stroke-width="1"/>
+          <circle cx="307" cy="340" r="2" fill="#555"/>
+          <circle cx="307" cy="380" r="2" fill="#555"/>
+          <circle cx="307" cy="420" r="2" fill="#555"/>
+
+          <!-- Desk Surface -->
+          <rect id="svg-desk-surface" x="240" y="295" width="320" height="10" rx="2" class="desk-rect" stroke-width="1"/>
+
+          <!-- Monitor behind glow (Facial fill light layer) -->
+          <g clip-path="url(#room-inner-clip)">
+            <circle id="svg-light-facial" cx="400" cy="225" r="90" fill="url(#svg-grad-facial)" filter="url(#soft-blur)" opacity="0" style="transition: opacity 0.8s ease;"/>
+          </g>
+
+          <!-- Monitor frame -->
+          <rect x="340" y="180" width="120" height="75" rx="3" fill="#101015" stroke="#252530" stroke-width="1.2"/>
+          <rect id="svg-monitor-screen" x="344" y="184" width="112" height="67" rx="1" fill="#08080c" style="transition: fill 0.8s ease, box-shadow 0.8s ease;"/>
+          <rect x="395" y="255" width="10" height="40" fill="#101015" stroke="#252530" stroke-width="1"/>
+          <ellipse cx="400" cy="295" rx="25" ry="3" fill="#101015"/>
+
+          <!-- Keyboard on desk -->
+          <polygon points="370,295 430,295 435,299 365,299" fill="#181822" stroke="#2c2c3c" stroke-width="0.5"/>
+
+          <!-- Desk accessories (Plant / books) -->
+          <!-- Book stack -->
+          <rect x="260" y="288" width="30" height="7" rx="1" fill="#662222" stroke="#441111" stroke-width="0.5"/>
+          <rect x="263" y="281" width="24" height="7" rx="1" fill="#224466" stroke="#112233" stroke-width="0.5"/>
+          
+          <!-- Hanging Pendant Lamp -->
+          <line x1="400" y1="30" x2="400" y2="100" stroke="#444" stroke-width="1.5"/>
+          <path id="svg-pendant-head" d="M380,100 L420,100 L425,112 L375,112 Z" fill="#1e1e28" stroke="#333" stroke-width="0.8" style="transition: fill 0.8s, filter 0.8s;"/>
+          <ellipse cx="400" cy="112" rx="25" ry="3" fill="#333" id="svg-pendant-bulb" style="transition: fill 0.8s;"/>
+
+          <!-- Desk Lamp -->
+          <!-- Base -->
+          <rect x="495" y="291" width="16" height="4" rx="1" fill="#1a1a24" stroke="#333" stroke-width="0.5"/>
+          <!-- Arm -->
+          <path d="M503,291 Q525,250 500,225" fill="none" stroke="#444" stroke-width="2"/>
+          <!-- Head -->
+          <path id="svg-desklamp-head" d="M488,220 L512,220 L520,227 L480,227 Z" fill="#1e1e28" stroke="#333" stroke-width="0.5" transform="rotate(-15 500 223)" style="transition: fill 0.8s;"/>
+
+          <!-- 5. Foreground Light Cones - Clipped to Room Inner Bounds -->
+          <g clip-path="url(#room-inner-clip)">
+            <!-- Task light cone from pendant lamp -->
+            <polygon id="svg-light-task" points="400,112 210,300 590,300" fill="url(#svg-grad-task)" opacity="0" style="mix-blend-mode: screen; pointer-events: none; transition: opacity 0.8s ease;"/>
+            
+            <!-- Desk lamp light wash -->
+            <polygon id="svg-light-desklamp" points="496,226 430,296 550,296" fill="url(#svg-grad-task)" opacity="0" style="mix-blend-mode: screen; pointer-events: none; transition: opacity 0.8s ease;"/>
+          </g>
+        </svg>
+
+        <!-- Overlay details -->
+        <div class="room-overlay">
+          <div class="room-state-badge" id="room-state-badge">
+            <span class="room-state-dot" id="room-state-dot"></span>
+            <span id="room-state-text">S₀ 空间空闲</span>
+          </div>
+          <div class="room-cct-badge" id="room-cct-badge">2700K</div>
+        </div>
+
+        <!-- Room Channel Indicators -->
+        <div class="room-channel-bar">
+          <div class="room-ch-tag" id="room-ch-ambient">
+            <span class="room-ch-dot" style="background: #e8a840;"></span>环境光
+          </div>
+          <div class="room-ch-tag" id="room-ch-task">
+            <span class="room-ch-dot" style="background: #4da6ff;"></span>任务光
+          </div>
+          <div class="room-ch-tag" id="room-ch-facial">
+            <span class="room-ch-dot" style="background: #a0b8e0;"></span>面部补光
+          </div>
+          <div class="room-ch-tag" id="room-ch-accent">
+            <span class="room-ch-dot" style="background: #38c8b0;"></span>情境光
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Content 1: FSM Decision Chain Interpreter (Sim Mode) -->
+      <div class="tab-content active" id="tab-content-sim" style="width: 100%; max-width: 800px; flex-shrink: 0;">
+        <div class="interpreter-card">
+          <div class="interpreter-header">
+            <span class="interpreter-title">🧠 FSM 决策控制链实时分析</span>
+            <span class="interpreter-subtitle">系统根据传感器输入进行逻辑推演的四步法展示</span>
+          </div>
+          <div class="interpreter-steps">
+            <!-- Step 1: Detect -->
+            <div class="interpreter-step" id="interp-step-1">
+              <div class="step-num">1</div>
+              <div class="step-content">
+                <div class="step-title">触发传感器信号 (Signals)</div>
+                <div class="step-body" id="interp-detect">监测中...</div>
+              </div>
+            </div>
+            <!-- Step 2: Implication -->
+            <div class="interpreter-step" id="interp-step-2">
+              <div class="step-num">2</div>
+              <div class="step-content">
+                <div class="step-title">传感器状态解析 (State)</div>
+                <div class="step-body" id="interp-implication">解析中...</div>
+              </div>
+            </div>
+            <!-- Step 3: Decision -->
+            <div class="interpreter-step" id="interp-step-3">
+              <div class="step-num">3</div>
+              <div class="step-content">
+                <div class="step-title">设计光照状态 (Goal)</div>
+                <div class="step-body" id="interp-decision">设计中...</div>
+              </div>
+            </div>
+            <!-- Step 4: Changes -->
+            <div class="interpreter-step" id="interp-step-4">
+              <div class="step-num">4</div>
+              <div class="step-content">
+                <div class="step-title">目标输出与时间 (Outputs)</div>
+                <div class="step-body" id="interp-changes">计算中...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Content 2: Fixtures & Channels Map (Fix Mode) -->
+      <div class="tab-content" id="tab-content-fix" style="width: 100%; max-width: 800px; display: none; flex-shrink: 0;">
+        <div class="fixtures-card">
+          <div class="fixtures-header">
+            <span class="fixtures-title">🔌 物理灯具与 FSM 逻辑通道映射表</span>
+            <span class="fixtures-subtitle">悬停或点击卡片，上方房间场景中对应的物理灯具将闪烁高亮</span>
+          </div>
+          <div class="fixtures-grid">
+            <!-- Card 1: Ambient -->
+            <div class="fixture-item-card" data-channel="ambient">
+              <div class="fixture-item-header">
+                <span class="fixture-item-dot" style="background: #e8a840;"></span>
+                <span class="fixture-item-title">环境光通道 (Ambient)</span>
+              </div>
+              <div class="fixture-item-body">
+                <div class="fixture-prop"><span class="prop-label">对应灯具：</span><span class="prop-val">吊顶回型反光暗槽灯带、嵌入式洗墙射灯</span></div>
+                <div class="fixture-prop"><span class="prop-label">安装位置：</span><span class="prop-val">天花板吊顶四周侧槽与背景墙壁顶端</span></div>
+                <div class="fixture-prop"><span class="prop-label">技术指标：</span><span class="prop-val">2700K-6500K 双色温调色, DALI-2 调光</span></div>
+                <div class="fixture-prop"><span class="prop-label">人因意义：</span><span class="prop-val">提供空间基础亮度洗墙，控制明暗过渡以缓冲瞳孔急剧收缩</span></div>
+              </div>
+            </div>
+
+            <!-- Card 2: Task -->
+            <div class="fixture-item-card" data-channel="task">
+              <div class="fixture-item-header">
+                <span class="fixture-item-dot" style="background: #4da6ff;"></span>
+                <span class="fixture-item-title">任务光通道 (Task)</span>
+              </div>
+              <div class="fixture-item-body">
+                <div class="fixture-prop"><span class="prop-label">对应灯具：</span><span class="prop-val">线性办公吊灯、桌面防眩护眼台灯</span></div>
+                <div class="fixture-prop"><span class="prop-label">安装位置：</span><span class="prop-val">工作台面正上方 1.2m 悬挂、书桌右侧</span></div>
+                <div class="fixture-prop"><span class="prop-label">技术指标：</span><span class="prop-val">6500K高色温, CRI > 98 高显指, UGR < 16</span></div>
+                <div class="fixture-prop"><span class="prop-label">人因意义：</span><span class="prop-val">高色温高照度抑制褪黑素，刺激皮质醇，提高工作专注力</span></div>
+              </div>
+            </div>
+
+            <!-- Card 3: Facial -->
+            <div class="fixture-item-card" data-channel="facial">
+              <div class="fixture-item-header">
+                <span class="fixture-item-dot" style="background: #a0b8e0;"></span>
+                <span class="fixture-item-title">面部补光通道 (Facial)</span>
+              </div>
+              <div class="fixture-item-body">
+                <div class="fixture-prop"><span class="prop-label">对应灯具：</span><span class="prop-val">显示器非对称挂灯、屏幕隐藏式水平柔光灯</span></div>
+                <div class="fixture-prop"><span class="prop-label">安装位置：</span><span class="prop-val">显示器顶部外壳与屏幕左右两侧</span></div>
+                <div class="fixture-prop"><span class="prop-label">技术指标：</span><span class="prop-val">4000K中性光, Ra > 95高显色, 无屏幕反光</span></div>
+                <div class="fixture-prop"><span class="prop-label">人因意义：</span><span class="prop-val">消除面部垂直明暗阴影，在摄像头视频会议中呈现健康肤色</span></div>
+              </div>
+            </div>
+
+            <!-- Card 4: Accent -->
+            <div class="fixture-item-card" data-channel="accent">
+              <div class="fixture-item-header">
+                <span class="fixture-item-dot" style="background: #38c8b0;"></span>
+                <span class="fixture-item-title">情境光通道 (Accent)</span>
+              </div>
+              <div class="fixture-item-body">
+                <div class="fixture-prop"><span class="prop-label">对应灯具：</span><span class="prop-val">踢脚线微光灯带、墙角立式 RGB-CW 氛围灯</span></div>
+                <div class="fixture-prop"><span class="prop-label">安装位置：</span><span class="prop-val">地面底边缘、房间角落与书柜内部</span></div>
+                <div class="fixture-prop"><span class="prop-label">技术指标：</span><span class="prop-val">RGB-CW 动态多彩调色, 低流明输出, 窄发光角</span></div>
+                <div class="fixture-prop"><span class="prop-label">人因意义：</span><span class="prop-val">提供背景色彩渲染与微弱轮廓可见度，引导副交感神经活动</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Right Panel: Compact FSM + State Details ===== -->
+    <aside class="panel-right">
+      <section class="fsm-compact">
+        <h2>🗺️ FSM 状态状态机</h2>
+        <div class="fsm-compact-wrap">
+          <svg id="fsm-svg" viewBox="0 0 720 520" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <!-- Glow filters for each state -->
+              <filter id="glow-s0" x="-80%" y="-80%" width="260%" height="260%">
+                <feGaussianBlur stdDeviation="8" result="blur"/>
+                <feFlood flood-color="#4a4a5e" flood-opacity="0.5"/>
+                <feComposite in2="blur" operator="in"/>
+                <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+              <filter id="glow-s1" x="-80%" y="-80%" width="260%" height="260%">
+                <feGaussianBlur stdDeviation="10" result="blur"/>
+                <feFlood flood-color="#e8a840" flood-opacity="0.5"/>
+                <feComposite in2="blur" operator="in"/>
+                <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+              <filter id="glow-s2" x="-80%" y="-80%" width="260%" height="260%">
+                <feGaussianBlur stdDeviation="10" result="blur"/>
+                <feFlood flood-color="#4da6ff" flood-opacity="0.5"/>
+                <feComposite in2="blur" operator="in"/>
+                <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+              <filter id="glow-s3" x="-80%" y="-80%" width="260%" height="260%">
+                <feGaussianBlur stdDeviation="10" result="blur"/>
+                <feFlood flood-color="#38c8b0" flood-opacity="0.5"/>
+                <feComposite in2="blur" operator="in"/>
+                <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+              <filter id="glow-s4" x="-80%" y="-80%" width="260%" height="260%">
+                <feGaussianBlur stdDeviation="10" result="blur"/>
+                <feFlood flood-color="#d07830" flood-opacity="0.5"/>
+                <feComposite in2="blur" operator="in"/>
+                <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+              <!-- Arrowhead marker -->
+              <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+                <path d="M0,0 L8,3 L0,6 Z" class="arrow-marker"/>
+              </marker>
+              <marker id="arrowhead-active" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+                <path d="M0,0 L8,3 L0,6 Z" fill="#4da6ff"/>
+              </marker>
+              <marker id="arrowhead-reset" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto" markerUnits="strokeWidth">
+                <path d="M0,0 L7,2.5 L0,5 Z" fill="rgba(255,255,255,0.08)"/>
+              </marker>
+              <!-- Radial gradients for nodes -->
+              <radialGradient id="grad-s0"><stop offset="0%" stop-color="#5a5a70"/><stop offset="100%" stop-color="#3a3a4a"/></radialGradient>
+              <radialGradient id="grad-s1"><stop offset="0%" stop-color="#f0c060"/><stop offset="100%" stop-color="#c08020"/></radialGradient>
+              <radialGradient id="grad-s2"><stop offset="0%" stop-color="#70bfff"/><stop offset="100%" stop-color="#3080d0"/></radialGradient>
+              <radialGradient id="grad-s3"><stop offset="0%" stop-color="#50e0cc"/><stop offset="100%" stop-color="#20a090"/></radialGradient>
+              <radialGradient id="grad-s4"><stop offset="0%" stop-color="#e89050"/><stop offset="100%" stop-color="#b06020"/></radialGradient>
+            </defs>
+
+            <!-- Edges (drawn first, behind nodes) -->
+            <g id="edges-group"></g>
+
+            <!-- Nodes -->
+            <g id="nodes-group"></g>
+
+            <!-- Flow dots overlay -->
+            <g id="flow-dots-group"></g>
+          </svg>
+        </div>
+      </section>
+
+      <section class="state-detail">
+        <h2>📋 当前状态</h2>
+        <div class="state-name-badge" id="state-badge">
+          <span class="state-dot" id="state-dot"></span>
+          <span id="state-name-text">S₀ 空间空闲</span>
+        </div>
+        <p class="state-desc" id="state-desc">
+          系统待机休眠，全局照度 &lt; 10 Lux，仅踢脚线微弱暖光维持空间轮廓可见度。
+        </p>
+        <div class="param-grid">
+          <div class="param-card">
+            <div class="param-card-label">色温 CCT</div>
+            <div class="param-card-value" id="param-cct">2700<span class="param-card-unit">K</span></div>
+          </div>
+          <div class="param-card">
+            <div class="param-card-label">照度 Lux</div>
+            <div class="param-card-value" id="param-lux">10<span class="param-card-unit">Lx</span></div>
+          </div>
+          <div class="param-card">
+            <div class="param-card-label">渐变时长</div>
+            <div class="param-card-value" id="param-fade">—<span class="param-card-unit"></span></div>
+          </div>
+          <div class="param-card">
+            <div class="param-card-label">滞后延时</div>
+            <div class="param-card-value" id="param-hysteresis">—<span class="param-card-unit"></span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="channel-panel">
+        <h2>💡 四维光照通道</h2>
+        <div class="channel-grid">
+          <div class="channel-item" id="ch-ambient">
+            <svg class="channel-ring-svg" viewBox="0 0 52 52">
+              <circle class="channel-ring-bg" cx="26" cy="26" r="20"/>
+              <circle class="channel-ring-fill" cx="26" cy="26" r="20"
+                stroke="#e8a840" stroke-dasharray="125.66" stroke-dashoffset="125.66"
+                transform="rotate(-90 26 26)"/>
+            </svg>
+            <span class="channel-value" data-ch="ambient">0%</span>
+            <span class="channel-label">环境光</span>
+          </div>
+          <div class="channel-item" id="ch-task">
+            <svg class="channel-ring-svg" viewBox="0 0 52 52">
+              <circle class="channel-ring-bg" cx="26" cy="26" r="20"/>
+              <circle class="channel-ring-fill" cx="26" cy="26" r="20"
+                stroke="#4da6ff" stroke-dasharray="125.66" stroke-dashoffset="125.66"
+                transform="rotate(-90 26 26)"/>
+            </svg>
+            <span class="channel-value" data-ch="task">0%</span>
+            <span class="channel-label">任务光</span>
+          </div>
+          <div class="channel-item" id="ch-facial">
+            <svg class="channel-ring-svg" viewBox="0 0 52 52">
+              <circle class="channel-ring-bg" cx="26" cy="26" r="20"/>
+              <circle class="channel-ring-fill" cx="26" cy="26" r="20"
+                stroke="#a0b8e0" stroke-dasharray="125.66" stroke-dashoffset="125.66"
+                transform="rotate(-90 26 26)"/>
+            </svg>
+            <span class="channel-value" data-ch="facial">0%</span>
+            <span class="channel-label">面部补光</span>
+          </div>
+          <div class="channel-item" id="ch-accent">
+            <svg class="channel-ring-svg" viewBox="0 0 52 52">
+              <circle class="channel-ring-bg" cx="26" cy="26" r="20"/>
+              <circle class="channel-ring-fill" cx="26" cy="26" r="20"
+                stroke="#38c8b0" stroke-dasharray="125.66" stroke-dashoffset="125.66"
+                transform="rotate(-90 26 26)"/>
+            </svg>
+            <span class="channel-value" data-ch="accent">0%</span>
+            <span class="channel-label">情境光</span>
+          </div>
+        </div>
+        <!-- Channel descriptions box -->
+        <div class="channel-desc-box" id="channel-desc-box">
+          <div class="channel-desc-title" id="channel-desc-title">💡 通道设计与人因工程学意义</div>
+          <div class="channel-desc-text" id="channel-desc-text">点击上方的各个通道网格，可以查看对应的通道设计标准、照明控制目的与人因工学意义。</div>
+        </div>
+      </section>
+
+      <!-- Trigger conditions for current state -->
+      <section class="state-detail" style="margin-top: 10px;">
+        <h2>⚡ 可用转换</h2>
+        <div id="available-transitions" style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.7;">
+          <!-- Populated by JS -->
+        </div>
+      </section>
+
+      <!-- ===== Dashboard Section ===== -->
+      <section class="dashboard-section">
+        <!-- CCT Gauge -->
+        <div class="cct-gauge-wrap">
+          <svg id="cct-gauge-svg" viewBox="0 0 130 78">
+            <defs>
+              <linearGradient id="cct-gradient" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stop-color="#ffa040"/>
+                <stop offset="35%" stop-color="#ffd0a0"/>
+                <stop offset="65%" stop-color="#e0ecff"/>
+                <stop offset="100%" stop-color="#90b8ff"/>
+              </linearGradient>
+            </defs>
+            <!-- Background arc -->
+            <path d="M 15 68 A 50 50 0 0 1 115 68" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="6" stroke-linecap="round"/>
+            <!-- Value arc -->
+            <path id="cct-arc" d="M 15 68 A 50 50 0 0 1 115 68" fill="none" stroke="url(#cct-gradient)" stroke-width="6" stroke-linecap="round"
+              stroke-dasharray="157" stroke-dashoffset="157"/>
+            <!-- Needle dot -->
+            <circle id="cct-needle" cx="15" cy="68" r="5" fill="#ffa040" opacity="0.9">
+              <animate attributeName="opacity" values="0.6;1;0.6" dur="2s" repeatCount="indefinite"/>
+            </circle>
+            <!-- Labels -->
+            <text x="15" y="76" text-anchor="middle" font-size="7" fill="#9090aa" font-family="Inter">2700K</text>
+            <text x="115" y="76" text-anchor="middle" font-size="7" fill="#9090aa" font-family="Inter">6500K</text>
+            <text id="cct-value-text" x="65" y="58" text-anchor="middle" font-size="18" font-weight="700" fill="#ffa040" font-family="JetBrains Mono">2700</text>
+            <text x="65" y="70" text-anchor="middle" font-size="8" fill="#9090aa" font-family="Inter">色温 (K)</text>
+          </svg>
+        </div>
+
+        <!-- Lux Display -->
+        <div class="lux-display">
+          <span class="lux-value" id="lux-value-text">10</span>
+          <span class="lux-unit">照度 (Lux)</span>
+          <div class="lux-bar-container">
+            <div class="lux-bar-fill" id="lux-bar" style="width: 0.67%"></div>
+          </div>
+        </div>
+
+        <!-- Transition Progress -->
+        <div class="transition-section">
+          <span class="transition-label">转换进度</span>
+          <div class="transition-progress-row" style="display: flex; align-items: center; gap: 8px;">
+            <div class="transition-bar">
+              <div class="transition-bar-fill" id="transition-bar-fill"></div>
+            </div>
+            <button class="btn-pause" id="btn-pause-transition" disabled title="当前无转换进行">⏸</button>
+          </div>
+          <span class="transition-info" id="transition-info"></span>
+        </div>
+      </section>
+    </aside>
+  </div>
+
+  <!-- Narration overlay for auto demo -->
+  <div class="narration-bar" id="narration-bar"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
